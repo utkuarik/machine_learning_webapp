@@ -8,11 +8,17 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.impute import SimpleImputer
 import sys
 from pandas.errors import ParserError
 import time
 import altair as alt
 import matplotlib.cm as cm
+# Keras specific
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
 
 
 st.title('Streamlit Demo')
@@ -20,20 +26,37 @@ st.title('Streamlit Demo')
 class Predictor:
 
     def prepare_data(self, split_data):
-        data = self.data[['overall', 'height_cm', 'weight_kg','age', 'potential']]
+        # self.data['index'] = self.data.index
+        data = self.data[self.features]
         data = data.sample(frac = round(split_data/100,2))
+
+        #impute nans with mean
+        imp = SimpleImputer(missing_values = np.nan, strategy="mean")
+        imp.fit_transform(data.loc[:,data.dtypes != 'object'])
+        data.loc[:,data.dtypes != 'object'] = imp.fit_transform(data.loc[:,data.dtypes != 'object'])
+
         target_options = data.columns
         self.chosen_target = st.sidebar.selectbox("Please choose target column", (target_options))
         X = data.loc[:, data.columns != self.chosen_target]
+        scaler = MinMaxScaler(feature_range=(0,1))
+        scaler.fit(X)
+        X = pd.DataFrame(scaler.transform(X))
+        X.columns = data.loc[:, data.columns != self.chosen_target].columns
         y = data[self.chosen_target]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+        
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
         
     def set_classifier_properties(self):
-        self.chosen_classifier = st.sidebar.selectbox("Please choose a classifier", ('Random Forest', 'Linear Regression')) 
+        self.chosen_classifier = st.sidebar.selectbox("Please choose a classifier", ('Random Forest', 'Linear Regression', 'Neural Network')) 
         if self.chosen_classifier == 'Random Forest': 
             self.n_trees = st.sidebar.slider('number of trees', 1, 1000, 1)
-     
+        elif self.chosen_classifier == 'Neural Network':
+            self.epochs = st.sidebar.slider('number of epochs', 1 ,100 ,10)
+            self.learning_rate = float(st.sidebar.text_input('learning rate:', '0.001'))
+            
             
     def predict(self, predict_btn):        
         if self.chosen_classifier == 'Random Forest':
@@ -48,9 +71,25 @@ class Predictor:
             predictions = self.regr.predict(self.X_test)
             self.predictions = predictions
 
+        elif self.chosen_classifier=='Neural Network':
+            model = Sequential()
+            model.add(Dense(500, input_dim = len(self.X_train.columns), activation='relu',))
+            model.add(Dense(50, activation='relu'))
+            model.add(Dense(50, activation='relu'))
+            model.add(Dense(1))
+
+            optimizer = keras.optimizers.SGD(lr=self.learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
+            model.compile(loss= "mean_squared_error" , optimizer='adam', metrics=["mean_squared_error"])
+            self.model = model.fit(self.X_train, self.y_train, epochs=self.epochs, batch_size=40)
+
+            self.predictions = model.predict(self.X_test)
+           
+
         result = pd.DataFrame(columns=['Actual', 'Prediction'])
+       
         result['Actual'] = self.y_test
-        result['Prediction'] = predictions
+        result['Prediction'] = self.predictions
+        result= result.merge(pd.DataFrame(self.data['short_name']), left_index =True, right_index=True)
         result.sort_index()
         self.result = result
 
@@ -94,7 +133,7 @@ class Predictor:
 
         # st.altair_chart(c + c)
 
-    def file_selector(self, folder_path='.'):
+    def file_selector(self, folder_path='./data'):
         filenames = os.listdir(folder_path)
         selected_filename = st.sidebar.selectbox('Select a file', filenames)
         return folder_path, selected_filename
@@ -107,18 +146,24 @@ class Predictor:
         if len(self.result) > 0:
             # print_checkbox = st.sidebar.checkbox('Show results as a table')
             # if print_checkbox:
-            st.dataframe(self.result.style.highlight_max(axis=0))
-            
+            result = self.result[['short_name', 'Actual', 'Prediction']]
+            st.dataframe(result.sort_values(by='Actual',ascending=False).style.highlight_max(axis=0))
     
+    def set_features(self):
+        self.features = st.multiselect('Please choose the features including target variable that go into the model', ['age','overall', 'potential','value_eur', 'height_cm','weight_kg'])
+
 if __name__ == '__main__':
 
     controller = Predictor()
     try:
         selected_filename, folder_path = controller.file_selector()
         controller.data = controller.read_file(folder_path, selected_filename)
+
         split_data = st.sidebar.slider('Randomly divide data %', 1, 100, 10 )
+        controller.set_features()
         controller.prepare_data(split_data)
         controller.set_classifier_properties()
+        
     except (AttributeError, ParserError, KeyError) as e:
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
 
@@ -126,14 +171,15 @@ if __name__ == '__main__':
     
     predict_btn = st.sidebar.button('Predict')
 
-    predictions, result = controller.predict(predict_btn)
+    
     if predict_btn:
+        predictions, result = controller.predict(predict_btn)
         controller.get_metrics()
         controller.plot_result()
-  
+        controller.print_table()
 
 
-    controller.print_table()
+    
 
     if st.sidebar.checkbox('Show raw data'):
         st.subheader('Raw data')
