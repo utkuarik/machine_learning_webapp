@@ -5,3 +5,4 @@ pandas==0.23.4
 sklearn
 matplotlib==3.0.3
 keras
+tensorflow
