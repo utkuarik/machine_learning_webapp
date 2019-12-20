@@ -4,4 +4,4 @@ altair==3.2.0
 pandas==0.23.4
 sklearn
 matplotlib==3.0.3
-Teras
+keras
