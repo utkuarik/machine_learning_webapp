@@ -1,3 +1,0 @@
-
-data = pd.read_csv(os.path.join(".","players_20.csv"))
-data = data[['age', 'height_cm', 'weight_kg', 'overall', 'potential','value_eur']]
