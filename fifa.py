@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
@@ -36,6 +39,7 @@ class Predictor:
         data.loc[:,data.dtypes != 'object'] = imp.fit_transform(data.loc[:,data.dtypes != 'object'])
 
         target_options = data.columns
+        
         self.chosen_target = st.sidebar.selectbox("Please choose target column", (target_options))
         X = data.loc[:, data.columns != self.chosen_target]
         scaler = MinMaxScaler(feature_range=(0,1))
@@ -50,39 +54,80 @@ class Predictor:
 
         
     def set_classifier_properties(self):
-        self.chosen_classifier = st.sidebar.selectbox("Please choose a classifier", ('Random Forest', 'Linear Regression', 'Neural Network')) 
-        if self.chosen_classifier == 'Random Forest': 
-            self.n_trees = st.sidebar.slider('number of trees', 1, 1000, 1)
-        elif self.chosen_classifier == 'Neural Network':
-            self.epochs = st.sidebar.slider('number of epochs', 1 ,100 ,10)
-            self.learning_rate = float(st.sidebar.text_input('learning rate:', '0.001'))
-            
-            
-    def predict(self, predict_btn):        
-        if self.chosen_classifier == 'Random Forest':
-            self.regr = RandomForestRegressor(max_depth=2, random_state=0, n_estimators=self.n_trees)
-            self.model = self.regr.fit(self.X_train, self.y_train)
-            predictions = self.regr.predict(self.X_test)
-            self.predictions = predictions
+        self.type = st.sidebar.selectbox("Algorithm type", ("Classification", "Regression", "Clustering"))
+        if self.type == "Regression":
+            self.chosen_classifier = st.sidebar.selectbox("Please choose a classifier", ('Random Forest', 'Linear Regression', 'Neural Network')) 
+            if self.chosen_classifier == 'Random Forest': 
+                self.n_trees = st.sidebar.slider('number of trees', 1, 1000, 1)
+            elif self.chosen_classifier == 'Neural Network':
+                self.epochs = st.sidebar.slider('number of epochs', 1 ,100 ,10)
+                self.learning_rate = float(st.sidebar.text_input('learning rate:', '0.001'))
+        elif self.type == "Classification":
+            self.chosen_classifier = st.sidebar.selectbox("Please choose a classifier", ('Logistic Regression', 'Naive Bayes', 'Neural Network')) 
+            if self.chosen_classifier == 'Logistic Regression': 
+                self.max_iter = st.sidebar.slider('max iterations', 1, 100, 10)
+            elif self.chosen_classifier == 'Neural Network':
+                self.epochs = st.sidebar.slider('number of epochs', 1 ,100 ,10)
+                self.learning_rate = float(st.sidebar.text_input('learning rate:', '0.001'))
         
-        elif self.chosen_classifier=='Linear Regression':
-            self.regr = LinearRegression()
-            self.model = self.regr.fit(self.X_train, self.y_train)
-            predictions = self.regr.predict(self.X_test)
-            self.predictions = predictions
+        elif self.type == "Clustering":
+            pass
 
-        elif self.chosen_classifier=='Neural Network':
-            model = Sequential()
-            model.add(Dense(500, input_dim = len(self.X_train.columns), activation='relu',))
-            model.add(Dense(50, activation='relu'))
-            model.add(Dense(50, activation='relu'))
-            model.add(Dense(1))
 
-            optimizer = keras.optimizers.SGD(lr=self.learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
-            model.compile(loss= "mean_squared_error" , optimizer='adam', metrics=["mean_squared_error"])
-            self.model = model.fit(self.X_train, self.y_train, epochs=self.epochs, batch_size=40)
 
-            self.predictions = model.predict(self.X_test)
+            
+    def predict(self, predict_btn):    
+
+        if self.type == "Regression":    
+            if self.chosen_classifier == 'Random Forest':
+                self.regr = RandomForestRegressor(max_depth=2, random_state=0, n_estimators=self.n_trees)
+                self.model = self.regr.fit(self.X_train, self.y_train)
+                predictions = self.regr.predict(self.X_test)
+                self.predictions = predictions
+            
+            elif self.chosen_classifier=='Linear Regression':
+                self.regr = LinearRegression()
+                self.model = self.regr.fit(self.X_train, self.y_train)
+                predictions = self.regr.predict(self.X_test)
+                self.predictions = predictions
+
+            elif self.chosen_classifier=='Neural Network':
+                model = Sequential()
+                model.add(Dense(500, input_dim = len(self.X_train.columns), activation='relu',))
+                model.add(Dense(50, activation='relu'))
+                model.add(Dense(50, activation='relu'))
+                model.add(Dense(1))
+
+                optimizer = keras.optimizers.SGD(lr=self.learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
+                model.compile(loss= "mean_squared_error" , optimizer='adam', metrics=["mean_squared_error"])
+                self.model = model.fit(self.X_train, self.y_train, epochs=self.epochs, batch_size=40)
+
+                self.predictions = model.predict(self.X_test)
+        elif self.type == "Classification":
+            if self.chosen_classifier == 'Logistic Regression':
+                self.regr = LogisticRegression()
+                self.model = self.regr.fit(self.X_train, self.y_train)
+                predictions = self.regr.predict(self.X_test)
+                self.predictions = predictions
+        
+            elif self.chosen_classifier=='Naive Bayes':
+                self.regr = GaussianNB()
+                self.model = self.regr.fit(self.X_train, self.y_train)
+                predictions = self.regr.predict(self.X_test)
+                self.predictions = predictions
+
+            elif self.chosen_classifier=='Neural Network':
+                model = Sequential()
+                model.add(Dense(500, input_dim = len(self.X_train.columns), activation='relu',))
+                model.add(Dense(50, activation='relu'))
+                model.add(Dense(50, activation='relu'))
+                model.add(Dense(1))
+
+                optimizer = keras.optimizers.SGD(lr=self.learning_rate, decay=1e-6, momentum=0.9, nesterov=True)
+                model.compile(loss= "mean_squared_error" , optimizer='adam', metrics=["mean_squared_error"])
+                self.model = model.fit(self.X_train, self.y_train, epochs=self.epochs, batch_size=40)
+
+                self.predictions = model.predict(self.X_test)
            
 
         result = pd.DataFrame(columns=['Actual', 'Prediction'])
@@ -104,18 +149,21 @@ class Predictor:
 
     def plot_result(self):
         fig, axes = plt.subplots(figsize=(12, 8))   
-        axes.scatter(self.result.index, self.result.Actual, color ='#2300A8', label = 'Actual ' + str(self.chosen_target),
+        axes.scatter(self.result.index, self.result.Actual, color='xkcd:lightish blue', label = 'Actual ' + str(self.chosen_target),
         alpha=0.70, cmap=cm.brg)
-        axes.scatter(self.result.index, self.result.Prediction, color = '#00A658', label = 'Predicted ' + str(self.chosen_target),
+        axes.scatter(self.result.index, self.result.Prediction, color = 'xkcd:bright red', label = 'Predicted ' + str(self.chosen_target),
         alpha=0.70, cmap=cm.brg)
         for tick in axes.xaxis.get_major_ticks():
             tick.label.set_fontsize(15) 
         for tick in axes.yaxis.get_major_ticks():
             tick.label.set_fontsize(15) 
+        
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
         axes.set_xlabel('Index', fontsize=20)
         axes.set_ylabel('Value',fontsize=20)
         axes.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
-        axes.legend(bbox_to_anchor=(1, 1), loc='2', borderaxespad=0. , prop={'size':20})
+        axes.legend(bbox_to_anchor=(1, 1), loc='2', borderaxespad=0. , prop={'size':10})
         st.pyplot()
 
         ## ALTAIR PLOT ##
@@ -161,8 +209,9 @@ if __name__ == '__main__':
 
         split_data = st.sidebar.slider('Randomly divide data %', 1, 100, 10 )
         controller.set_features()
-        controller.prepare_data(split_data)
-        controller.set_classifier_properties()
+        if len(controller.features) > 1:
+            controller.prepare_data(split_data)
+            controller.set_classifier_properties()
         
     except (AttributeError, ParserError, KeyError) as e:
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
