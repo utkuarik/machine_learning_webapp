@@ -1,0 +1,11 @@
+[server]
+enableCORS=false
+
+headless = true
+
+[browser]
+
+# Internet address of the server server that the browser should connect to. Can be IP address or DNS name.
+# Default: 'localhost'
+serverAddress = "localhost"
+
