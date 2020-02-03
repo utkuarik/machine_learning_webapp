@@ -22,6 +22,7 @@ import matplotlib.cm as cm
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+import time
 
 
 st.title('Machine Learning Predictor')
@@ -165,7 +166,7 @@ class Predictor:
         axes.set_xlabel('Index', fontsize=20)
         axes.set_ylabel('Value',fontsize=20)
         axes.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
-        axes.legend(bbox_to_anchor=(1, 1), loc='2', borderaxespad=0. , prop={'size':10})
+        axes.legend(bbox_to_anchor=(1, 1), loc='3', borderaxespad=0. , prop={'size':10})
         st.pyplot()
 
         ## ALTAIR PLOT ##
@@ -182,15 +183,17 @@ class Predictor:
         #     height=450 )
 
         # st.altair_chart(c + c)
-
-    @st.cache()
-    def file_selector(self, folder_path='./data'):
+    # @st.cache()
+    def file_selector(self):
         # filenames = os.listdir(folder_path)
         # selected_filename = st.sidebar.selectbox('Select a file', filenames)
         file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
         if file is not None:
             data = pd.read_csv(file)
-        return data
+            return data
+        else:
+            st.text("Please upload a csv file")
+        
     
     # def read_file(self,  selected_filename, folder_path='.'):
     #     return pd.read_csv(os.path.join(folder_path, selected_filename))
@@ -199,7 +202,7 @@ class Predictor:
         if len(self.result) > 0:
             # print_checkbox = st.sidebar.checkbox('Show results as a table')
             # if print_checkbox:
-            result = self.result[['Index', 'Actual', 'Prediction']]
+            result = self.result[['Actual', 'Prediction']]
             st.dataframe(result.sort_values(by='Actual',ascending=False).style.highlight_max(axis=0))
     
     def set_features(self):
@@ -209,8 +212,8 @@ if __name__ == '__main__':
 
     controller = Predictor()
     try:
-        selected_filename, folder_path = controller.file_selector()
-        controller.data = controller.read_file(folder_path, selected_filename)
+        # selected_filename, folder_path = controller.file_selector()
+        controller.data = controller.file_selector()
 
         split_data = st.sidebar.slider('Randomly divide data %', 1, 100, 10 )
         controller.set_features()
@@ -227,7 +230,12 @@ if __name__ == '__main__':
 
     
     if predict_btn:
+        st.sidebar.text("Progress:")
+        my_bar = st.sidebar.progress(0)
         predictions, result = controller.predict(predict_btn)
+        for percent_complete in range(100):
+            my_bar.progress(percent_complete + 1)
+        
         controller.get_metrics()
         controller.plot_result()
         controller.print_table()
