@@ -1,8 +1,8 @@
-streamlit==0.49.0
-vega-datasets==0.7.0
-altair==3.2.0
-pandas==0.23.4
+streamlit
+vega-datasets
+altair
+pandas
 sklearn
-matplotlib==3.0.3
-keras
+matplotlib
+keras==2.3.1
 tensorflow
