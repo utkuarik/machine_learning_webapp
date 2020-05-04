@@ -271,10 +271,8 @@ class Predictor:
         #     height=450 )
 
         # st.altair_chart(c + c)
-    # @st.cache()
+    
     def file_selector(self):
-        # filenames = os.listdir(folder_path)
-        # selected_filename = st.sidebar.selectbox('Select a file', filenames)
         file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
         if file is not None:
             data = pd.read_csv(file)
@@ -283,9 +281,6 @@ class Predictor:
             st.text("Please upload a csv file")
         
     
-    # def read_file(self,  selected_filename, folder_path='.'):
-    #     return pd.read_csv(os.path.join(folder_path, selected_filename))
-
     def print_table(self):
         if len(self.result) > 0:
             # print_checkbox = st.sidebar.checkbox('Show results as a table')
@@ -312,10 +307,6 @@ if __name__ == '__main__':
             predict_btn = st.sidebar.button('Predict')  
     except (AttributeError, ParserError, KeyError) as e:
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
-
-    
-    
-    
 
     if controller.data is not None and len(controller.features) > 1:
         if predict_btn:
