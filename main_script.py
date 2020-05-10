@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as  pd
+import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,23 +44,21 @@ class Predictor:
         data = self.data[self.features]
         data = data.sample(frac = round(split_data/100,2))
 
-        # Impute nans with mean
+        # Impute nans with mean for numeris and most frequent for categoricals
         cat_imp = SimpleImputer(strategy="most_frequent")
         if len(data.loc[:,data.dtypes == 'object'].columns) != 0:
             data.loc[:,data.dtypes == 'object'] = cat_imp.fit_transform(data.loc[:,data.dtypes == 'object'])
         imp = SimpleImputer(missing_values = np.nan, strategy="mean")
         data.loc[:,data.dtypes != 'object'] = imp.fit_transform(data.loc[:,data.dtypes != 'object'])
 
+        # One hot encoding for categorical variables
         cats = data.dtypes == 'object'
         le = LabelEncoder() 
-
         for x in data.columns[cats]:
             sum(pd.isna(data[x]))
             data.loc[:,x] = le.fit_transform(data[x])
-
         onehotencoder = OneHotEncoder() 
         data.loc[:, ~cats].join(pd.DataFrame(data=onehotencoder.fit_transform(data.loc[:,cats]).toarray(), columns= onehotencoder.get_feature_names()))
-
 
         # Set target column
         target_options = data.columns
@@ -102,10 +100,7 @@ class Predictor:
         
         elif self.type == "Clustering":
             pass
-
-
-
-            
+     
     def predict(self, predict_btn):    
 
         if self.type == "Regression":    
@@ -201,14 +196,14 @@ class Predictor:
         output_file("slider.html")
 
         s1 = figure(plot_width=800, plot_height=500, background_fill_color="#fafafa")
-        s1.circle(self.result_train.index, self.result_train.Actual_Train, size=12, color=Set3[5][3], alpha=1)
-        s1.triangle(self.result_train.index, self.result_train.Prediction_Train, size=12, color=Set3[5][4], alpha=1)
+        s1.circle(self.result_train.index, self.result_train.Actual_Train, size=12, color="Black", alpha=1, legend_label = "Actual")
+        s1.triangle(self.result_train.index, self.result_train.Prediction_Train, size=12, color="Red", alpha=1, legend_label = "Prediction")
         tab1 = Panel(child=s1, title="Train Data")
 
         if self.result.Actual is not None:
             s2 = figure(plot_width=800, plot_height=500, background_fill_color="#fafafa")
-            s2.circle(self.result.index, self.result.Actual, size=12, color=Set3[5][3], alpha=1)
-            s2.triangle(self.result.index, self.result.Prediction, size=12, color=Set3[5][4], alpha=1)
+            s2.circle(self.result.index, self.result.Actual, size=12, color=Set3[5][3], alpha=1, legend_label = "Actual")
+            s2.triangle(self.result.index, self.result.Prediction, size=12, color=Set3[5][4], alpha=1, legend_label = "Prediction")
             tab2 = Panel(child=s2, title="Test Data")
             tabs = Tabs(tabs=[ tab1, tab2 ])
         else:
@@ -292,11 +287,10 @@ class Predictor:
         self.features = st.multiselect('Please choose the features including target variable that go into the model', self.data.columns )
 
 if __name__ == '__main__':
-
     controller = Predictor()
     try:
-        # selected_filename, folder_path = controller.file_selector()
         controller.data = controller.file_selector()
+
         if controller.data is not None:
             split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
             train_test = st.sidebar.slider('Train-test split %', 1, 99, 66 )
@@ -308,6 +302,7 @@ if __name__ == '__main__':
     except (AttributeError, ParserError, KeyError) as e:
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
 
+    # if controller.data is not None and len(controller.features) > 1:
     if controller.data is not None and len(controller.features) > 1:
         if predict_btn:
             st.sidebar.text("Progress:")
