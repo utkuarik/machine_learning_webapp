@@ -302,7 +302,10 @@ if __name__ == '__main__':
     except (AttributeError, ParserError, KeyError) as e:
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
 
+<<<<<<< HEAD:main_script.py
     # if controller.data is not None and len(controller.features) > 1:
+=======
+>>>>>>> 2d45002cad5ea2cd4bc81ecec01fcaba58dca01d:src/fifa.py
     if controller.data is not None and len(controller.features) > 1:
         if predict_btn:
             st.sidebar.text("Progress:")
