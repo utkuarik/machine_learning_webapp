@@ -1,3 +1,5 @@
+# Machine Learning Web App with streamlit
+
 This Machine Learning web application is based on streamlit module. You can make predictions based on user uploaded datasets, plot the results and observe the error metrics for predicted values
 
 * Can run on localhost
