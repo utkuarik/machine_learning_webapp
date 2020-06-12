@@ -37,8 +37,9 @@ import time
 
 st.title('Machine Learning Predictor')
 
+# Main Predicor class
 class Predictor:
-
+    # Data preparation part, it will automatically handle with your data
     def prepare_data(self, split_data, train_test):
         # Reduce data size
         data = self.data[self.features]
@@ -78,7 +79,7 @@ class Predictor:
         except:
             st.markdown('<span style="color:red">With this amount of data and split size the train data will have no records, <br /> Please change reduce and split parameter <br /> </span>', unsafe_allow_html=True)  
 
-        
+    # Classifier type and algorithm selection 
     def set_classifier_properties(self):
         self.type = st.sidebar.selectbox("Algorithm type", ("Classification", "Regression", "Clustering"))
         if self.type == "Regression":
@@ -100,7 +101,8 @@ class Predictor:
         
         elif self.type == "Clustering":
             pass
-     
+
+    # Model training and predicitons 
     def predict(self, predict_btn):    
 
         if self.type == "Regression":    
@@ -169,13 +171,13 @@ class Predictor:
         result_train['Actual_Train'] = self.y_train
         result['Prediction'] = self.predictions
         result_train['Prediction_Train'] = self.predictions_train
-        # result= result.merge(pd.DataFrame(self.data['short_name']), left_index =True, right_index=True)
         result.sort_index()
         self.result = result
         self.result_train = result_train
 
         return self.predictions, self.predictions_train, self.result, self.result_train
 
+    # Get the result metrics of the model
     def get_metrics(self):
         self.error_metrics = {}
         if self.type == 'Regression':
@@ -190,7 +192,7 @@ class Predictor:
             return st.markdown('### Accuracy Train: ' + str(round(self.error_metrics['Accuracy_train'], 3)) +
             ' -- Accuracy Test: ' + str(round(self.error_metrics['Accuracy_test'], 3)))
 
-
+    # Plot the predicted values and real values
     def plot_result(self):
         
         output_file("slider.html")
@@ -212,61 +214,8 @@ class Predictor:
 
         st.bokeh_chart(tabs)
 
-        # s2 = figure(plot_width=250, plot_height=250, background_fill_color="#fafafa")
-
-
-        # fig, (axes, axes2) = plt.subplots(2, 1, figsize=(12, 16))   
-        # axes.scatter(self.result_train.index, self.result_train.Actual_Train, color='xkcd:lightish blue', label = 'Actual ' + str(self.chosen_target),
-        # alpha=0.70, cmap=cm.brg)
-        # axes.scatter(self.result_train.index, self.result_train.Prediction_Train, color = 'xkcd:bright red', label = 'Predicted ' + str(self.chosen_target),
-        # alpha=0.70, cmap=cm.brg)
-        # for tick in axes.xaxis.get_major_ticks():
-        #     tick.label.set_fontsize(10) 
-        # for tick in axes.yaxis.get_major_ticks():
-        #     tick.label.set_fontsize(10) 
-        
-      
-        # axes2.scatter(self.result.index, self.result.Actual, color='xkcd:lightish blue', label = 'Actual ' + str(self.chosen_target),
-        # alpha=0.70, cmap=cm.brg)
-        # axes2.scatter(self.result.index, self.result.Prediction, color = 'xkcd:bright red', label = 'Predicted ' + str(self.chosen_target),
-        # alpha=0.70, cmap=cm.brg)
-        # for tick in axes2.xaxis.get_major_ticks():
-        #     tick.label.set_fontsize(15) 
-        # for tick in axes2.yaxis.get_major_ticks():
-        #     tick.label.set_fontsize(15) 
-        
-        # axes.set_title(fontsize = 18 , label = 'Train Data')
-        # axes.spines['top'].set_visible(False)
-        # axes.spines['right'].set_visible(False)
-        # axes.set_xlabel('Index', fontsize=20)
-        # axes.set_ylabel('Value',fontsize=20)
-        # axes.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
-        # axes.legend(bbox_to_anchor=(0.9, 1), loc='2', borderaxespad=0. , prop={'size':10})
-
-        # axes2.set_title(fontsize = 18 , label = 'Test Data')
-        # axes2.spines['top'].set_visible(False)
-        # axes2.spines['right'].set_visible(False)
-        # axes2.set_xlabel('Index', fontsize=20)
-        # axes2.set_ylabel('Value',fontsize=20)
-        # axes2.grid(color='grey', linestyle='-', linewidth=0.25, alpha=0.5)
-        # axes2.legend(bbox_to_anchor=(0.9, 1), loc='2', borderaxespad=0. , prop={'size':10})
-        # st.pyplot()
-
-        ## ALTAIR PLOT ##
-        # self.result['Index'] = self.result.index
-        # result = self.result.melt('Index')
-        # c = alt.Chart(result).mark_circle(size=60).encode(
-        # x='Index',
-        # y='value',
-        # color = 'variable'
-    
-        
-        # ).properties(
-        #     width= 650,
-        #     height=450 )
-
-        # st.altair_chart(c + c)
-    
+       
+    # File selector module for web app
     def file_selector(self):
         file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
         if file is not None:
@@ -278,8 +227,6 @@ class Predictor:
     
     def print_table(self):
         if len(self.result) > 0:
-            # print_checkbox = st.sidebar.checkbox('Show results as a table')
-            # if print_checkbox:
             result = self.result[['Actual', 'Prediction']]
             st.dataframe(result.sort_values(by='Actual',ascending=False).style.highlight_max(axis=0))
     
@@ -327,15 +274,6 @@ if __name__ == '__main__':
             st.subheader('Raw data')
             st.write(controller.data)
     
-
-        
-
-
-    # if st.sidebar.checkbox('Show histogram'):
-    #     chosen_column = st.selectbox("Please choose a columns", ('Value', 'Overall', 'Potential'))   
-    #     st.subheader('Histogram')
-    #     plt.hist(player_list[chosen_column], bins=20, edgecolor='black')
-    #     st.pyplot()
 
 
 
