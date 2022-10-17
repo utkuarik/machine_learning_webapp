@@ -26,18 +26,46 @@ from bokeh.layouts import layout
 from bokeh.plotting import figure
 from bokeh.models import Toggle, BoxAnnotation
 from bokeh.models import Panel, Tabs
-from bokeh.palettes import Set3
+from bokeh.palettes import Set3     
 
+st.write("pre keras")
 # Keras specific
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 import time
+import torch
+import clip
+from PIL import Image
+import requests
+import io
 
 
 st.title('Machine Learning Predictor')
 
 class Predictor:
+    
+    def __init__(self) -> None:
+        self.data = None
+        self.selection = None
+
+    def clip_predictor(self, image, labels):
+
+
+
+
+        image = preprocess(image).unsqueeze(0).to(device)
+        text = clip.tokenize(labels).to(device)
+
+        with torch.no_grad():
+            image_features = model.encode_image(image)
+            text_features = model.encode_text(text)
+
+            logits_per_image, logits_per_text = model(image, text)
+            probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+
+        # st.write("Label probs:", probs) 
+        return probs
 
     def prepare_data(self, split_data, train_test):
         # Reduce data size
@@ -274,6 +302,13 @@ class Predictor:
             return data
         else:
             st.text("Please upload a csv file")
+
+    def method_selector(self):
+        selection = st.sidebar.selectbox(
+            'How would you like to be contacted?',
+            ('Image Recognition', 'Tabular Data Prediction'))
+
+        return selection
         
     
     def print_table(self):
@@ -288,18 +323,40 @@ class Predictor:
 
 if __name__ == '__main__':
     controller = Predictor()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device)
     try:
-        controller.data = controller.file_selector()
+        # controller.data = controller.file_selector()
+        controller.selection = controller.method_selector()
 
-        if controller.data is not None:
-            split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
-            train_test = st.sidebar.slider('Train-test split %', 1, 99, 66 )
-        controller.set_features()
-        if len(controller.features) > 1:
-            controller.prepare_data(split_data, train_test)
-            controller.set_classifier_properties()
-            predict_btn = st.sidebar.button('Predict')  
+        if controller.selection == "Tabular Data Prediction":
+            controller.data = controller.file_selector()
+            if controller.data is not None:
+                split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
+                train_test = st.sidebar.slider('Train-test split %', 1, 99, 66 )
+                controller.set_features()
+            st.write(controller.features)
+            if len(controller.features) > 1:
+                controller.prepare_data(split_data, train_test)
+                controller.set_classifier_properties()
+                predict_btn = st.sidebar.button('Predict')  
+
+        elif controller.selection == "Image Recognition":
+
+            url = st.text_input("Please paste image url")
+            resp = requests.get(url)
+            st.write(resp)
+            image = Image.open(io.BytesIO(requests.get(url).content))
+            labels = ['a man', 'a woman']
+            probs = controller.clip_predictor(image, labels )
+
+            st.write(labels
+            
+            )
+            st.write(dict(zip(labels, probs)))
+
     except (AttributeError, ParserError, KeyError) as e:
+        st.write(e)
         st.markdown('<span style="color:blue">WRONG FILE TYPE</span>', unsafe_allow_html=True)  
 
 
