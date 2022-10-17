@@ -294,13 +294,12 @@ if __name__ == '__main__':
             resp = requests.get(url)
             st.write(resp)
             image = Image.open(io.BytesIO(requests.get(url).content))
-            labels = ['a man', 'a woman']
+            labels = st.text_input("please enter the classes for the model with commas")
+            labels = labels.replace(" ", "").split(",")
             probs = controller.clip_predictor(image, labels )
 
-            st.write(labels
-            
-            )
-            st.write(dict(zip(labels, probs)))
+            st.markdown("Class probabilities are:", unsafe_allow_html=False)
+            st.write(dict(zip(labels, probs[0])))
 
     except (AttributeError, ParserError, KeyError) as e:
         st.write(e)
@@ -320,10 +319,10 @@ if __name__ == '__main__':
             controller.print_table()
 
             data = controller.result.to_csv(index=False)
-            b64 = base64.b64encode(data.encode()).decode()  # some strings <-> bytes conversions necessary here
-            href = f'<a href="data:file/csv;base64,{b64}">Download Results</a> (right-click and save as &lt;some_name&gt;.csv)'
-            st.sidebar.markdown(href, unsafe_allow_html=True)
-
+            # b64 = base64.b64encode(data.encode()).decode()  # some strings <-> bytes conversions necessary here
+            # href = f'<a href="data:file/csv;base64,{b64}">Download Results</a> (right-click and save as &lt;some_name&gt;.csv)'
+            # st.sidebar.markdown(href, unsafe_allow_html=True)
+            st.sidebar.download_button("Download results as csv", data, file_name="results.csv")
 
     
     if controller.data is not None:
