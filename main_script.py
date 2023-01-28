@@ -43,34 +43,16 @@ import io
 
 st.title('Machine Learning Predictor')
 
-# Main Predicor class
-class Predictor:
-    
+
+class PreProcessor:
+
     def __init__(self) -> None:
         self.data = None
         self.selection = None
 
-    def clip_predictor(self, image, labels):
-
-
-
-
-        image = preprocess(image).unsqueeze(0).to(device)
-        text = clip.tokenize(labels).to(device)
-
-        with torch.no_grad():
-            image_features = model.encode_image(image)
-            text_features = model.encode_text(text)
-
-            logits_per_image, logits_per_text = model(image, text)
-            probs = logits_per_image.softmax(dim=-1).cpu().numpy()
-
-        # st.write("Label probs:", probs) 
-        return probs
-
-    def prepare_data(self, split_data, train_test):
+    def prepare_data_tabular(self,controller, split_data, train_test):
         # Reduce data size
-        data = self.data[self.features]
+        data = controller.data[controller.features]
         data = data.sample(frac = round(split_data/100,2))
 
         # Impute nans with mean for numeris and most frequent for categoricals
@@ -103,10 +85,36 @@ class Predictor:
 
         # Train test split
         try:
-            self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=(1 - train_test/100), random_state=42)
+            controller.X_train, controller.X_test, controller.y_train, controller.y_test = train_test_split(X, y, test_size=(1 - train_test/100), random_state=42)
         except:
             st.markdown('<span style="color:red">With this amount of data and split size the train data will have no records, <br /> Please change reduce and split parameter <br /> </span>', unsafe_allow_html=True)  
 
+# Main Predicor class
+class Predictor:
+    
+    def __init__(self) -> None:
+        self.data = None
+        self.selection = None
+
+    # def clip_predictor(self, image, labels):
+
+
+
+
+    #     image = preprocess(image).unsqueeze(0).to(device)
+    #     text = clip.tokenize(labels).to(device)
+
+    #     with torch.no_grad():
+    #         image_features = model.encode_image(image)
+    #         text_features = model.encode_text(text)
+
+    #         logits_per_image, logits_per_text = model(image, text)
+    #         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
+
+    #     # st.write("Label probs:", probs) 
+    #     return probs
+
+   
     # Classifier type and algorithm selection 
     def set_classifier_properties(self):
         self.type = st.sidebar.selectbox("Algorithm type", ("Classification", "Regression", "Clustering"))
@@ -255,7 +263,7 @@ class Predictor:
     def method_selector(self):
         selection = st.sidebar.selectbox(
             'How would you like to be contacted?',
-            ('Image Recognition', 'Tabular Data Prediction'))
+            ('Image Recognition', 'Tabular Data Prediction', 'ChatBot'))
 
         return selection
         
@@ -269,9 +277,13 @@ class Predictor:
         self.features = st.multiselect('Please choose the features including target variable that go into the model', self.data.columns )
 
 if __name__ == '__main__':
+
+    ## Define controller objects
     controller = Predictor()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model, preprocess = clip.load("ViT-B/32", device=device)
+    preprocessor = PreProcessor()
+
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    # model, preprocess = clip.load("ViT-B/32", device=device)
     try:
         # controller.data = controller.file_selector()
         controller.selection = controller.method_selector()
@@ -284,7 +296,7 @@ if __name__ == '__main__':
                 controller.set_features()
             st.write(controller.features)
             if len(controller.features) > 1:
-                controller.prepare_data(split_data, train_test)
+                preprocessor.prepare_data_tabular(controller, split_data, train_test)
                 controller.set_classifier_properties()
                 predict_btn = st.sidebar.button('Predict')  
 
@@ -300,6 +312,44 @@ if __name__ == '__main__':
 
             st.markdown("Class probabilities are:", unsafe_allow_html=False)
             st.write(dict(zip(labels, probs[0])))
+
+        
+        elif controller.selection == "ChatBot":
+            
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            import torch
+            from transformers import models
+
+            @st.cache(hash_funcs={models.gpt2.tokenization_gpt2_fast.GPT2TokenizerFast: hash},suppress_st_warning=True)
+            def load_model():    
+                tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+                model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+                return tokenizer, model
+
+            tokenizer, model = load_model()
+
+            chat_history_ids = None
+            prompt = st.text_input("please provide a prompt") 
+
+            if 'count' not in st.session_state or st.session_state.count == 6:
+                st.session_state.count = 0 
+                
+                st.session_state.chat_history_ids = None
+                st.session_state.old_response = ''
+            else:
+                st.session_state.count += 1
+
+            # encode the new user input, add the eos_token and return a tensor in Pytorch
+            new_user_input_ids = tokenizer.encode(prompt + tokenizer.eos_token, return_tensors='pt')
+
+            # append the new user input tokens to the chat history
+            bot_input_ids = torch.cat([st.session_state.chat_history_ids, new_user_input_ids], dim=-1) if st.session_state.count > 1 else new_user_input_ids
+
+            # generated a response while limiting the total chat history to 1000 tokens, 
+            st.session_state.chat_history_ids = model.generate(bot_input_ids, max_length=5000, pad_token_id=tokenizer.eos_token_id)   
+            response = tokenizer.decode(st.session_state.chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)  
+            # pretty print last ouput tokens from bot
+            st.write("Bot: {}".format(response))
 
     except (AttributeError, ParserError, KeyError) as e:
         st.write(e)
