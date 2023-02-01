@@ -28,7 +28,6 @@ from bokeh.models import Toggle, BoxAnnotation
 from bokeh.models import Panel, Tabs
 from bokeh.palettes import Set3     
 
-st.write("pre keras")
 # Keras specific
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -41,7 +40,44 @@ import requests
 import io
 
 
-st.title('Machine Learning Predictor')
+def load_chatbot_model():
+    st.title('ChatBot')
+
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    import torch
+    from transformers import models
+
+    @st.cache(hash_funcs={models.gpt2.tokenization_gpt2_fast.GPT2TokenizerFast: hash},suppress_st_warning=True)
+    def load_model():    
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+        model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+        return tokenizer, model
+
+    tokenizer, model = load_model()
+
+    chat_history_ids = None
+    prompt = st.text_input("please provide a prompt") 
+
+    if 'count' not in st.session_state or st.session_state.count == 6:
+        st.session_state.count = 0 
+
+        st.session_state.chat_history_ids = None
+        st.session_state.old_response = ''
+    else:
+        st.session_state.count += 1
+
+    st.write(st.session_state.count)
+    # encode the new user input, add the eos_token and return a tensor in Pytorch
+    new_user_input_ids = tokenizer.encode(prompt + tokenizer.eos_token, return_tensors='pt')
+
+    # append the new user input tokens to the chat history
+    bot_input_ids = torch.cat([st.session_state.chat_history_ids, new_user_input_ids], dim=-1) if st.session_state.count > 1 else new_user_input_ids
+
+    # generated a response while limiting the total chat history to 1000 tokens, 
+    st.session_state.chat_history_ids = model.generate(bot_input_ids, max_length=5000, pad_token_id=tokenizer.eos_token_id)   
+    response = tokenizer.decode(st.session_state.chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)  
+    # pretty print last ouput tokens from bot
+    st.write("Bot: {}".format(response))
 
 
 class PreProcessor:
@@ -96,23 +132,23 @@ class Predictor:
         self.data = None
         self.selection = None
 
-    # def clip_predictor(self, image, labels):
+    def clip_predictor(self, image, labels):
 
 
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model, preprocess = clip.load("ViT-B/32", device=device)        
+        image =preprocess(image).unsqueeze(0).to(device)
+        text = clip.tokenize(labels).to(device)
 
+        with torch.no_grad():
+            image_features = model.encode_image(image)
+            text_features = model.encode_text(text)
 
-    #     image = preprocess(image).unsqueeze(0).to(device)
-    #     text = clip.tokenize(labels).to(device)
+            logits_per_image, logits_per_text = model(image, text)
+            probs = logits_per_image.softmax(dim=-1).cpu().numpy()
 
-    #     with torch.no_grad():
-    #         image_features = model.encode_image(image)
-    #         text_features = model.encode_text(text)
-
-    #         logits_per_image, logits_per_text = model(image, text)
-    #         probs = logits_per_image.softmax(dim=-1).cpu().numpy()
-
-    #     # st.write("Label probs:", probs) 
-    #     return probs
+        # st.write("Label probs:", probs) 
+        return probs
 
    
     # Classifier type and algorithm selection 
@@ -289,6 +325,9 @@ if __name__ == '__main__':
         controller.selection = controller.method_selector()
 
         if controller.selection == "Tabular Data Prediction":
+
+            st.title('Tabular Data Prediction')
+
             controller.data = controller.file_selector()
             if controller.data is not None:
                 split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
@@ -301,6 +340,8 @@ if __name__ == '__main__':
                 predict_btn = st.sidebar.button('Predict')  
 
         elif controller.selection == "Image Recognition":
+            
+            st.title('Image Recognition')
 
             url = st.text_input("Please paste image url")
             resp = requests.get(url)
@@ -315,41 +356,8 @@ if __name__ == '__main__':
 
         
         elif controller.selection == "ChatBot":
-            
-            from transformers import AutoModelForCausalLM, AutoTokenizer
-            import torch
-            from transformers import models
+            load_chatbot_model()
 
-            @st.cache(hash_funcs={models.gpt2.tokenization_gpt2_fast.GPT2TokenizerFast: hash},suppress_st_warning=True)
-            def load_model():    
-                tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
-                model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
-                return tokenizer, model
-
-            tokenizer, model = load_model()
-
-            chat_history_ids = None
-            prompt = st.text_input("please provide a prompt") 
-
-            if 'count' not in st.session_state or st.session_state.count == 6:
-                st.session_state.count = 0 
-                
-                st.session_state.chat_history_ids = None
-                st.session_state.old_response = ''
-            else:
-                st.session_state.count += 1
-
-            # encode the new user input, add the eos_token and return a tensor in Pytorch
-            new_user_input_ids = tokenizer.encode(prompt + tokenizer.eos_token, return_tensors='pt')
-
-            # append the new user input tokens to the chat history
-            bot_input_ids = torch.cat([st.session_state.chat_history_ids, new_user_input_ids], dim=-1) if st.session_state.count > 1 else new_user_input_ids
-
-            # generated a response while limiting the total chat history to 1000 tokens, 
-            st.session_state.chat_history_ids = model.generate(bot_input_ids, max_length=5000, pad_token_id=tokenizer.eos_token_id)   
-            response = tokenizer.decode(st.session_state.chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)  
-            # pretty print last ouput tokens from bot
-            st.write("Bot: {}".format(response))
 
     except (AttributeError, ParserError, KeyError) as e:
         st.write(e)
