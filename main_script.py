@@ -49,8 +49,10 @@ def load_chatbot_model():
 
     @st.cache(hash_funcs={models.gpt2.tokenization_gpt2_fast.GPT2TokenizerFast: hash},suppress_st_warning=True)
     def load_model():    
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
-        model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+        with st.spinner("Model is loading"):        
+            tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+            model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
+            st.balloons()
         return tokenizer, model
 
     tokenizer, model = load_model()
@@ -317,9 +319,12 @@ if __name__ == '__main__':
     ## Define controller objects
     controller = Predictor()
     preprocessor = PreProcessor()
+    
 
     # device = "cuda" if torch.cuda.is_available() else "cpu"
     # model, preprocess = clip.load("ViT-B/32", device=device)
+
+
     try:
         # controller.data = controller.file_selector()
         controller.selection = controller.method_selector()
@@ -329,33 +334,39 @@ if __name__ == '__main__':
             st.title('Tabular Data Prediction')
 
             controller.data = controller.file_selector()
-            if controller.data is not None:
+            if controller.data is not None: # Check if user provie a file
                 split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
                 train_test = st.sidebar.slider('Train-test split %', 1, 99, 66 )
                 controller.set_features()
-            st.write(controller.features)
-            if len(controller.features) > 1:
-                preprocessor.prepare_data_tabular(controller, split_data, train_test)
-                controller.set_classifier_properties()
-                predict_btn = st.sidebar.button('Predict')  
+                st.write(controller.features)
+                if len(controller.features) > 1:
+                    preprocessor.prepare_data_tabular(controller, split_data, train_test)
+                    controller.set_classifier_properties()
+                    predict_btn = st.sidebar.button('Predict')
+                
 
         elif controller.selection == "Image Recognition":
             
             st.title('Image Recognition')
 
             url = st.text_input("Please paste image url")
-            resp = requests.get(url)
-            st.write(resp)
-            image = Image.open(io.BytesIO(requests.get(url).content))
-            labels = st.text_input("please enter the classes for the model with commas")
-            labels = labels.replace(" ", "").split(",")
-            probs = controller.clip_predictor(image, labels )
 
-            st.markdown("Class probabilities are:", unsafe_allow_html=False)
-            st.write(dict(zip(labels, probs[0])))
+            if len(url) > 0 : # Check if user provie url then procede
+                resp = requests.get(url)
+                st.write(resp)
+                image = Image.open(io.BytesIO(requests.get(url).content))
+                st.image(image, width = 300, caption='Provided Image')
+                st.subheader(':blue[Results:]')
+                labels = st.text_input("Enter prompt here")
+                labels = labels.replace(" ", "").split(",")
+                probs = controller.clip_predictor(image, labels )
+
+                st.markdown("Class probabilities are:", unsafe_allow_html=False)
+                st.write(dict(zip(labels, probs[0])))
 
         
         elif controller.selection == "ChatBot":
+                
             load_chatbot_model()
 
 
@@ -387,7 +398,7 @@ if __name__ == '__main__':
         if st.sidebar.checkbox('Show raw data'):
             st.subheader('Raw data')
             st.write(controller.data)
-    
+
 
 
 
