@@ -334,7 +334,7 @@ if __name__ == '__main__':
             st.title('Tabular Data Prediction')
 
             controller.data = controller.file_selector()
-            if controller.data is not None: # Check if user provie a file
+            if controller.data is not None: #Check if user provided a file, then proceed
                 split_data = st.sidebar.slider('Randomly reduce data size %', 1, 100, 10 )
                 train_test = st.sidebar.slider('Train-test split %', 1, 99, 66 )
                 controller.set_features()
@@ -348,21 +348,21 @@ if __name__ == '__main__':
         elif controller.selection == "Image Recognition":
             
             st.title('Image Recognition')
-
             url = st.text_input("Please paste image url")
 
-            if len(url) > 0 : # Check if user provie url then procede
+            if len(url) > 0 : #Check if user provided a url, then proceed
                 resp = requests.get(url)
-                st.write(resp)
                 image = Image.open(io.BytesIO(requests.get(url).content))
                 st.image(image, width = 300, caption='Provided Image')
-                st.subheader(':blue[Results:]')
-                labels = st.text_input("Enter prompt here")
-                labels = labels.replace(" ", "").split(",")
-                probs = controller.clip_predictor(image, labels )
+                labels = st.text_input("Enter classes to predict with commas")
 
-                st.markdown("Class probabilities are:", unsafe_allow_html=False)
-                st.write(dict(zip(labels, probs[0])))
+                if len(labels) > 0: #Check if user provided classes, then proceed
+                    labels = labels.replace(" ", "").split(",")
+                    probs = controller.clip_predictor(image, labels)
+
+                    st.subheader(':blue[Results:]')
+                    st.markdown("Class probabilities are:", unsafe_allow_html=False)
+                    st.write(dict(zip(labels, probs[0])))
 
         
         elif controller.selection == "ChatBot":
