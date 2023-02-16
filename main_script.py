@@ -1,3 +1,4 @@
+from concurrent.futures import process
 import streamlit as st
 import pandas as pd
 import os
@@ -39,15 +40,16 @@ from PIL import Image
 import requests
 import io
 
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+from transformers import models
 
 def load_chatbot_model():
     st.title('ChatBot')
 
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    import torch
-    from transformers import models
 
-    @st.cache(hash_funcs={models.gpt2.tokenization_gpt2_fast.GPT2TokenizerFast: hash},suppress_st_warning=True)
+
+    @st.cache_resource()
     def load_model():    
         with st.spinner("Model is loading"):        
             tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
@@ -81,7 +83,21 @@ def load_chatbot_model():
     # pretty print last ouput tokens from bot
     st.write("Bot: {}".format(response))
 
+@st.cache_resource()
+def load_image_model():
+    with st.spinner("Model is loading"):    
+        model, preprocess, device = load_clip_model()
+        st.balloons()  
 
+    return model, preprocess, device     
+
+    return model, process, device
+def load_clip_model():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model, preprocess = clip.load("ViT-B/32", device=device) 
+
+    return model, preprocess, device
+    
 class PreProcessor:
 
     def __init__(self) -> None:
@@ -135,11 +151,8 @@ class Predictor:
         self.selection = None
 
     def clip_predictor(self, image, labels):
-
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model, preprocess = clip.load("ViT-B/32", device=device)        
-        image =preprocess(image).unsqueeze(0).to(device)
+        model, preprocess, device = load_image_model()   
+        image = preprocess(image).unsqueeze(0).to(device)
         text = clip.tokenize(labels).to(device)
 
         with torch.no_grad():
@@ -340,6 +353,7 @@ if __name__ == '__main__':
                 controller.set_features()
                 st.write(controller.features)
                 if len(controller.features) > 1:
+
                     preprocessor.prepare_data_tabular(controller, split_data, train_test)
                     controller.set_classifier_properties()
                     predict_btn = st.sidebar.button('Predict')
