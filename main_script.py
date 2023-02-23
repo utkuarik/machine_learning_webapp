@@ -2,6 +2,7 @@ from concurrent.futures import process
 import streamlit as st
 import pandas as pd
 import os
+import collections.abc as container_abcs
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -43,6 +44,11 @@ import io
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 from transformers import models
+from diffusers import StableDiffusionPipeline
+from torch.cuda.amp import autocast
+
+from rembg import remove
+import base64
 
 def load_chatbot_model():
     st.title('ChatBot')
@@ -123,7 +129,7 @@ class PreProcessor:
             sum(pd.isna(data[x]))
             data.loc[:,x] = le.fit_transform(data[x])
         onehotencoder = OneHotEncoder() 
-        data.loc[:, ~cats].join(pd.DataFrame(data=onehotencoder.fit_transform(data.loc[:,cats]).toarray(), columns= onehotencoder.get_feature_names()))
+        data.loc[:, ~cats].join(pd.DataFrame(data=onehotencoder.fit_transform(data.loc[:,cats]).toarray(), columns= onehotencoder.get_feature_names_out()))
 
         # Set target column
         target_options = data.columns
@@ -156,12 +162,9 @@ class Predictor:
         text = clip.tokenize(labels).to(device)
 
         with torch.no_grad():
-            image_features = model.encode_image(image)
-            text_features = model.encode_text(text)
 
             logits_per_image, logits_per_text = model(image, text)
             probs = logits_per_image.softmax(dim=-1).cpu().numpy()
-
         # st.write("Label probs:", probs) 
         return probs
 
@@ -284,13 +287,13 @@ class Predictor:
         
         output_file("slider.html")
 
-        s1 = figure(plot_width=800, plot_height=500, background_fill_color="#fafafa")
+        s1 = figure(width=800, height=500, background_fill_color="#fafafa")
         s1.circle(self.result_train.index, self.result_train.Actual_Train, size=12, color="Black", alpha=1, legend_label = "Actual")
         s1.triangle(self.result_train.index, self.result_train.Prediction_Train, size=12, color="Red", alpha=1, legend_label = "Prediction")
         tab1 = Panel(child=s1, title="Train Data")
 
         if self.result.Actual is not None:
-            s2 = figure(plot_width=800, plot_height=500, background_fill_color="#fafafa")
+            s2 = figure(width=800, height=500, background_fill_color="#fafafa")
             s2.circle(self.result.index, self.result.Actual, size=12, color=Set3[5][3], alpha=1, legend_label = "Actual")
             s2.triangle(self.result.index, self.result.Prediction, size=12, color=Set3[5][4], alpha=1, legend_label = "Prediction")
             tab2 = Panel(child=s2, title="Test Data")
@@ -314,7 +317,7 @@ class Predictor:
     def method_selector(self):
         selection = st.sidebar.selectbox(
             'How would you like to be contacted?',
-            ('Image Recognition', 'Tabular Data Prediction', 'ChatBot'))
+            ('Image Recognition', 'Image Generation', 'Image Editor', 'Tabular Data Prediction', 'ChatBot'))
 
         return selection
         
@@ -333,11 +336,6 @@ if __name__ == '__main__':
     controller = Predictor()
     preprocessor = PreProcessor()
     
-
-    # device = "cuda" if torch.cuda.is_available() else "cpu"
-    # model, preprocess = clip.load("ViT-B/32", device=device)
-
-
     try:
         # controller.data = controller.file_selector()
         controller.selection = controller.method_selector()
@@ -379,10 +377,111 @@ if __name__ == '__main__':
                     st.write(dict(zip(labels, probs[0])))
 
         
+        # elif controller.selection == "Image Generation":
+            
+            # import jax
+            # import numpy as np
+            # from flax.jax_utils import replicate
+            # from flax.training.common_utils import shard
+            # import PIL
+            # import requests
+            # from io import BytesIO
+
+
+            # from diffusers import FlaxStableDiffusionInpaintPipeline
+
+            # def download_image(url):
+            #     response = requests.get(url)
+            #     return PIL.Image.open(BytesIO(response.content)).convert("RGB")
+
+            # img_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png"
+            # mask_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png"
+
+            # init_image = download_image(img_url).resize((512, 512))
+            # mask_image = download_image(mask_url).resize((512, 512))
+
+            # pipeline, params = FlaxStableDiffusionInpaintPipeline.from_pretrained("xvjiarui/stable-diffusion-2-inpainting")
+
+            # prompt = "Face of a yellow cat, high resolution, sitting on a park bench"
+            # prng_seed = jax.random.PRNGKey(0)
+            # num_inference_steps = 50
+
+            # num_samples = jax.device_count()
+            # prompt = num_samples * [prompt]
+            # init_image = num_samples * [init_image]
+            # mask_image = num_samples * [mask_image]
+            # prompt_ids, processed_masked_images, processed_masks = pipeline.prepare_inputs(prompt, init_image, mask_image)
+
+
+            # # shard inputs and rng
+            # params = replicate(params)
+            # prng_seed = jax.random.split(prng_seed, jax.device_count())
+            # prompt_ids = shard(prompt_ids)
+            # processed_masked_images = shard(processed_masked_images)
+            # processed_masks = shard(processed_masks)
+
+            # images = pipeline(prompt_ids, processed_masks, processed_masked_images, params, prng_seed, num_inference_steps, jit=True).images
+            # images = pipeline.numpy_to_pil(np.asarray(images.reshape((num_samples,) + images.shape[-3:])))
+
+
+
+
+
+        
+            # st.image(images, width = 300, caption='Provided Image', clamp=True, channels='RBG')
+
         elif controller.selection == "ChatBot":
                 
             load_chatbot_model()
 
+        elif controller.selection == "Image Editor":
+            # Download the fixed image
+            # def convert_image(img):
+            #     buf = BytesIO()
+            #     img.save(buf, format="PNG")
+            #     byte_im = buf.getvalue()
+            #     return byte_im
+
+
+            # def fix_image(upload):
+            #     image = Image.open(upload)
+            #     col1.write("Original Image :camera:")
+            #     col1.image(image)
+
+            #     fixed = remove(image)
+            #     col2.write("Fixed Image :wrench:")
+            #     col2.image(fixed)
+            #     st.sidebar.markdown("\n")
+            #     st.sidebar.download_button("Download fixed image", convert_image(fixed), "fixed.png", "image/png")
+
+
+            col1, col2 = st.columns(2)
+            uploaded_image = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+
+            if uploaded_image:
+                input = Image.open(uploaded_image)
+                st.image(input)
+
+                color = st.sidebar.color_picker('Choose a background color', '#DEC0B3')
+                rvbg = st.sidebar.button('Remove Background')
+
+                if rvbg:
+                    size = input.size
+                    result = Image.new("RGB", size, color)
+                    out = remove(input)
+                    result.paste(out, mask=out) 
+                    st.image(result)
+                
+                    img_byte_arr = io.BytesIO()
+                    result.save(img_byte_arr, format='PNG')
+                    img_byte_arr = img_byte_arr.getvalue()
+                
+                    btn = st.download_button(
+                            label="Download image",
+                            data=img_byte_arr,
+                            file_name="downloaded_image.png",
+                            mime="image/png"
+                        )
 
     except (AttributeError, ParserError, KeyError) as e:
         st.write(e)
