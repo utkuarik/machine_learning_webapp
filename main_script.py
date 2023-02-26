@@ -50,6 +50,7 @@ from torch.cuda.amp import autocast
 from rembg import remove
 import base64
 
+from  image_utils import *
 def load_chatbot_model():
     st.title('ChatBot')
 
@@ -459,29 +460,52 @@ if __name__ == '__main__':
             uploaded_image = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
 
             if uploaded_image:
-                input = Image.open(uploaded_image)
-                st.image(input)
+                image = Image.open(uploaded_image)
+                st.image(image)
 
                 color = st.sidebar.color_picker('Choose a background color', '#DEC0B3')
                 rvbg = st.sidebar.button('Remove Background')
 
+                manipulation_type = st.selectbox("Choose a manipulation type", ("Grayscale", "Blur", "Brightness", "Contrast", "Crop"))
+
+                if manipulation_type == "Grayscale":
+                    edited_image = grayscale(image)
+
+                elif manipulation_type == "Blur":
+                    edited_image = blur(image)
+
+                elif manipulation_type == "Brightness":
+                    level = st.slider("Brightness level", min_value=0.1, max_value=3.0, step=0.1)
+                    edited_image = brightness(image, level)
+
+                elif manipulation_type == "Contrast":
+                    level = st.slider("Contrast level", min_value=0.1, max_value=3.0, step=0.1)
+                    edited_image = contrast(image, level)
+
+                elif manipulation_type == "Crop":
+                    width = st.number_input("Enter the width", value=200)
+                    height = st.number_input("Enter the height", value=200)
+                    edited_image = crop(image, width, height)
+
+                st.image(edited_image)
+
                 if rvbg:
-                    size = input.size
-                    result = Image.new("RGB", size, color)
-                    out = remove(input)
-                    result.paste(out, mask=out) 
-                    st.image(result)
+                    size = image.size
+                    edited_image = Image.new("RGB", size, color)
+                    out = remove(image)
+                    edited_image.paste(out, mask=out) 
+                    st.image(edited_image)
                 
-                    img_byte_arr = io.BytesIO()
-                    result.save(img_byte_arr, format='PNG')
-                    img_byte_arr = img_byte_arr.getvalue()
+                img_byte_arr = io.BytesIO()
+                edited_image.save(img_byte_arr, format='PNG')
+                img_byte_arr = img_byte_arr.getvalue()
                 
-                    btn = st.download_button(
-                            label="Download image",
-                            data=img_byte_arr,
-                            file_name="downloaded_image.png",
-                            mime="image/png"
-                        )
+                btn = st.download_button(
+                        label="Download image",
+                        data=img_byte_arr,
+                        file_name="downloaded_image.png",
+                        mime="image/png"
+                    )
 
     except (AttributeError, ParserError, KeyError) as e:
         st.write(e)
