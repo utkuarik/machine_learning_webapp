@@ -478,20 +478,25 @@ if __name__ == '__main__':
 
         elif controller.selection == "Image Editor":
 
-            col1, col2 = st.columns(2)
+            st.header("Image Editor")
             uploaded_image = st.sidebar.file_uploader(
                 "Upload an image", type=["png", "jpg", "jpeg"])
 
             if uploaded_image:
                 image = Image.open(uploaded_image)
-                st.image(image)
+                original_image = image.copy()
+
+                col11, col12, col13 = st.columns(3)
+                with col12:
+                    st.markdown('**Uploaded Image**:')
+                    st.image(image)
                 
                 color = st.sidebar.color_picker('Choose a background color', '#DEC0B3')
                 rvbg = st.sidebar.button('Remove Background')
 
-                manipulation_list = st.multiselect(
-                'Choose operations',
-                ['Grayscale', 'Blur', 'Brightness', 'Contrast', 'Vignette'],
+                manipulation_list = st.multiselect("""Choose manipulations
+                            """ ,
+                ['Grayscale', 'Blur', 'Brightness', 'Contrast', 'Vignette', 'Saturation', 'Sepia'],
                 None)
 
                 if "Grayscale" in manipulation_list:
@@ -510,6 +515,14 @@ if __name__ == '__main__':
                                       min_value=0.1, max_value=3.0, step=0.1)
                     image = contrast(image, level)
 
+                if "Saturation" in manipulation_list:
+                    level = st.slider("Contrast level",
+                                      min_value=0.1, max_value=3.0, step=0.1)
+                    image = saturation(image, level)
+
+                if "Sepia" in manipulation_list:
+                    image = sepia(image)
+
                 if "Crop" in manipulation_list:
                     width = st.number_input("Enter the width", value=200)
                     height = st.number_input("Enter the height", value=200)
@@ -518,7 +531,12 @@ if __name__ == '__main__':
                 if "Vignette" in manipulation_list:
                     image = add_vignette(image)
 
-                st.image(image)
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.image(original_image)
+
+                with col2:
+                    st.image(image)
 
                 if rvbg:
                     size = image.size
